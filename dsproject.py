@@ -2,6 +2,7 @@ import math
 import time
 import os
 import random
+import tracemalloc
 
 # HUONG DOI TUONG(OOP)
 class City:
@@ -27,7 +28,7 @@ class City:
 def load_tsp_file(filepath):
     """Đọc dữ liệu từ file .tsp chuẩn và tạo ra danh sách các đối tượng City."""
     cities = []
-    with open(filepath, 'r') as file:
+    with open(filepath, "r") as file:
         is_node_section = False  # Cờ đánh dấu khi nào bắt đầu đọc tọa độ
         for line in file:
             line = line.strip()
@@ -303,11 +304,12 @@ def validate_tour(tour, original_cities):
         
     return True, "Hợp lệ"
 
-# 8. CHƯƠNG TRÌNH CHÍNH (MAIN ENTRY POINT)
+# 8. CHƯƠNG TRÌNH CHÍNH (MAIN ENTRY POINT) (ALGORITHM)
+'''
 if __name__ == "__main__":
     # Đường dẫn trỏ tới file dữ liệu
-    base_path = "/home/ghbigbrain/Downloads/dataset/tsplib-master/"
-    file_name = "dsj1000.tsp" 
+    base_path = r"" #
+    file_name = "" #
     
     dataset_path = os.path.join(base_path, file_name)
 
@@ -323,8 +325,11 @@ if __name__ == "__main__":
             # THỰC NGHIỆM 1: So sánh Nearest Neighbor gốc và SA tối ưu hóa
             print("Đang chạy: Nearest Neighbor...")
             start_time_nn = time.time()
+            tracemalloc.start()
             tour_nn, dist_nn = nearest_neighbor_tsp(all_cities, start_index=0)
             exec_ms_nn = (time.time() - start_time_nn) * 1000 
+            _, peak_mem_nn = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
             
             print("Đang chạy: Simulated Annealing (Tối ưu kết quả NN)...")
             start_time_sa = time.time()
@@ -391,3 +396,111 @@ if __name__ == "__main__":
         print(f"Hãy kiểm tra lại xem file đã nằm trong thư mục {base_path} chưa.")
     except Exception as e:
         print(f"\n[LỖI CHƯA XÁC ĐỊNH] Có lỗi xảy ra trong quá trình chạy: {e}")
+'''
+# 8. CHƯƠNG TRÌNH CHÍNH (MAIN ENTRY POINT) (METHOD)
+''''''
+if __name__ == "__main__":
+    base_path = r"D:\duyManh\Study\discreteMaths\p1"
+    file_name = "att48.tsp" 
+    dataset_path = os.path.join(base_path, file_name)
+
+    try:
+        all_cities = load_tsp_file(dataset_path)
+        if not all_cities:
+            print("[ERROR] Empty dataset or invalid format.")
+            exit()
+            
+        num_vertices = len(all_cities)
+        print(f"[INFO] Successfully loaded {num_vertices} cities.\n")
+        
+        # =====================================================================
+        # METHOD 1: HYBRID STOCHASTIC PIPELINE (NN + SA)
+        # =====================================================================
+        tracemalloc.start()
+        start_time_m1 = time.time()
+        
+        init_tour_m1, init_dist_m1 = nearest_neighbor_tsp(all_cities, start_index=0)
+        final_tour_m1, final_dist_m1 = simulated_annealing_tsp(init_tour_m1, init_dist_m1)
+        
+        elapsed_time_m1 = (time.time() - start_time_m1) * 1000  # ms
+        _, peak_mem_m1 = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        
+        # =====================================================================
+        # METHOD 2: HYBRID DETERMINISTIC PIPELINE (CI + HC)
+        # =====================================================================
+        tracemalloc.start()
+        start_time_m2 = time.time()
+        
+        init_tour_m2, init_dist_m2 = cheapest_insertion_tsp(all_cities, start_index=0)
+        final_tour_m2, final_dist_m2 = hill_climbing_tsp(init_tour_m2, init_dist_m2)
+        
+        elapsed_time_m2 = (time.time() - start_time_m2) * 1000  # ms
+        _, peak_mem_m2 = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        # =====================================================================
+        # ADVANCED ANALYSIS & DEEP COMPARISON REPORT
+        # =====================================================================
+        # 1. Tính toán các thông số bổ sung về Chất lượng (Quality)
+        imp_rate_m1 = ((init_dist_m1 - final_dist_m1) / init_dist_m1) * 100
+        imp_rate_m2 = ((init_dist_m2 - final_dist_m2) / init_dist_m2) * 100
+        
+        # 2. Tính toán hiệu suất tối ưu (Distance reduced per millisecond)
+        # Tránh chia cho 0 nếu thời gian quá nhỏ
+        time_m1_safe = max(elapsed_time_m1, 0.001)
+        time_m2_safe = max(elapsed_time_m2, 0.001)
+        opt_efficiency_m1 = (init_dist_m1 - final_dist_m1) / time_m1_safe
+        opt_efficiency_m2 = (init_dist_m2 - final_dist_m2) / time_m2_safe
+        
+        # 3. Tính toán chỉ số tích hợp Không gian - Thời gian (Space-Time Cost)
+        # Đơn vị: KB.ms (Càng nhỏ chứng tỏ thuật toán càng tối ưu tài nguyên hệ thống)
+        mem_kb_m1 = peak_mem_m1 / 1024
+        mem_kb_m2 = peak_mem_m2 / 1024
+        space_time_cost_m1 = mem_kb_m1 * elapsed_time_m1
+        space_time_cost_m2 = mem_kb_m2 * elapsed_time_m2
+
+        print("=" * 90)
+        print("              BÁO CÁO ĐỐI SÁNH HIỆU NĂNG TOÀN DIỆN (COMPREHENSIVE BENCHMARK)")
+        print("=" * 90)
+        print(f"{'Thông số đo đạc (Metrics)':<40} | {'Method 1 (NN+SA)':<20} | {'Method 2 (CI+HC)':<20}")
+        print("-" * 90)
+        
+        # Trục 1: Chất lượng giải pháp (Solution Quality)
+        print(f"{'1. Lộ trình khởi tạo (Initial Tour)':<40} | {init_dist_m1:<20.2f} | {init_dist_m2:<20.2f}")
+        print(f"{'2. Lộ trình tối ưu cuối (Final Tour)':<40} | {final_dist_m1:<20.2f} | {final_dist_m2:<20.2f}")
+        print(f"{'3. Tỷ lệ cải thiện (Improvement Rate)':<40} | {f'{imp_rate_m1:.2f}%':<20} | {f'{imp_rate_m2:.2f}%':<20}")
+        print("-" * 90)
+        
+        # Trục 2: Chi phí thời gian (Time Complexity)
+        print(f"{'4. Tổng thời gian chạy (Execution Time)':<40} | {f'{elapsed_time_m1:.2f} ms':<20} | {f'{elapsed_time_m2:.2f} ms':<20}")
+        print(f"{'5. Thời gian trung bình/Nút (Time/Node)':<40} | {f'{elapsed_time_m1/num_vertices:.3f} ms':<20} | {f'{elapsed_time_m2/num_vertices:.3f} ms':<20}")
+        print("-" * 90)
+        
+        # Trục 3: Hiệu năng không gian (Space Complexity)
+        print(f"{'6. Bộ nhớ RAM đỉnh (Peak Memory)':<40} | {f'{mem_kb_m1:.2f} KB':<20} | {f'{mem_kb_m2:.2f} KB':<20}")
+        print(f"{'7. Bộ nhớ trung bình/Nút (Memory/Node)':<40} | {f'{mem_kb_m1/num_vertices:.3f} KB':<20} | {f'{mem_kb_m2/num_vertices:.3f} KB':<20}")
+        print("-" * 90)
+        
+        # Trục 4: Chỉ số đánh đổi hệ thống (System Trade-off Metrics)
+        print(f"{'8. Tốc độ tối ưu (Dist Reduced/ms)':<40} | {opt_efficiency_m1:<20.3f} | {opt_efficiency_m2:<20.3f}")
+        print(f"{'9. Chỉ số hao tổn (Space-Time Cost)':<40} | {f'{space_time_cost_m1:.2f} KB.ms':<20} | {f'{space_time_cost_m2:.2f} KB.ms':<20}")
+        print("=" * 90)
+
+        # Đoạn diễn giải phân tích tự động
+        print("\n[PHÂN TÍCH ĐÁNH GIÁ (ANALYTICAL SUMMARY)]")
+        # So sánh chất lượng
+        better_q = "Method 1" if final_dist_m1 < final_dist_m2 else "Method 2"
+        q_gap = abs(final_dist_m1 - final_dist_m2) / max(final_dist_m1, final_dist_m2) * 100
+        print(f" -> Về Chất lượng: {better_q} cho kết quả tốt hơn với độ lệch {q_gap:.2f}%.")
+        
+        # So sánh không gian và thời gian
+        fastest = "Method 1" if elapsed_time_m1 < elapsed_time_m2 else "Method 2"
+        most_eco = "Method 1" if mem_kb_m1 < mem_kb_m2 else "Method 2"
+        print(f" -> Về Thời gian: {fastest} tối ưu thời gian xử lý vượt trội hơn.")
+        print(f" -> Về Không gian: Lượng RAM tiêu thụ thực nghiệm của cả hai tương đương (đều ở mức rất thấp ~vài KB) "
+              f"do cấu trúc lưu trữ danh sách tọa độ thay vì ma trận kề full. Tuy nhiên, {most_eco} có lượng RAM đỉnh thấp hơn.")
+
+    except FileNotFoundError:
+        print(f"[ERROR] File '{file_name}' not found.")
+''''''
